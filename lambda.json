@@ -1,0 +1,143 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Lambda Function",
+  "Parameters": {
+    "AliasName": {
+      "Default": "production",
+      "Description": "The alias name",
+      "Type": "String"
+    }
+  },
+  "Resources": {
+    "FunctionRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "sts:AssumeRole"
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "lambda.amazonaws.com"
+                ]
+              }
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        ]
+      }
+    },
+    "LambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "ZipFile": "exports.handler = async (event) => { return event }"
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "FunctionRole",
+            "Arn"
+          ]
+        },
+        "MemorySize": "128",
+        "Timeout": 1,
+        "Runtime": "nodejs14.x",
+        "Handler": "index.handler"
+      }
+    },
+    "LambdaAlias": {
+      "Type": "AWS::Lambda::Alias",
+      "Properties": {
+        "Description": "Alias",
+        "FunctionName": {
+          "Ref": "LambdaFunction"
+        },
+        "FunctionVersion": "$LATEST",
+        "Name": {
+          "Ref": "AliasName"
+        }
+      }
+    },
+    "LambdaUrl": {
+      "Type": "AWS::Lambda::Url",
+      "Properties": {
+        "AuthType": "NONE",
+        "Qualifier": {
+          "Ref": "AliasName"
+        },
+        "TargetFunctionArn": {
+          "Fn::GetAtt": [
+            "LambdaFunction",
+            "Arn"
+          ]
+        }
+      }
+    },
+    "LambdaUrlPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunctionUrl",
+        "FunctionName": {
+          "Ref": "LambdaAlias"
+        },
+        "FunctionUrlAuthType": "NONE",
+        "Principal": "*"
+      }
+    },
+    "LogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/lambda/${LambdaFunction}"
+        },
+        "RetentionInDays": 30
+      }
+    }
+  },
+  "Outputs": {
+    "LambdaARN": {
+      "Description": "ARN of the Lambda function",
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}-LambdaARN"
+        }
+      },
+      "Value": {
+        "Fn::GetAtt": [
+          "LambdaFunction",
+          "Arn"
+        ]
+      }
+    },
+    "LambdaName": {
+      "Description": "Name of the Lambda function",
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}-LambdaName"
+        }
+      },
+      "Value": {
+        "Ref": "LambdaFunction"
+      }
+    },
+    "LambdaUrl": {
+      "Description": "Public URL of the Lambda function",
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}-LambdaUrl"
+        }
+      },
+      "Value": {
+        "Fn::GetAtt": [
+          "LambdaUrl",
+          "FunctionUrl"
+        ]
+      }
+    }
+  }
+}
